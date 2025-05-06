@@ -26,18 +26,22 @@ def get_estilo(servicio, tipo):
 def crear_estilo_kml(doc, id_color, color_hex):
     style = doc.createElement("Style")
     style.setAttribute("id", id_color)
+
     icon_style = doc.createElement("IconStyle")
     color = doc.createElement("color")
     color.appendChild(doc.createTextNode(color_hex))
     icon_style.appendChild(color)
+
     scale = doc.createElement("scale")
     scale.appendChild(doc.createTextNode("1.2"))
     icon_style.appendChild(scale)
+
     icon = doc.createElement("Icon")
     href = doc.createElement("href")
     href.appendChild(doc.createTextNode("http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png"))
     icon.appendChild(href)
     icon_style.appendChild(icon)
+
     style.appendChild(icon_style)
     return style
 
@@ -69,34 +73,37 @@ def generar_kmz(df, servicio, nombre_archivo):
         nombre_texto = str(row['Nombre']) if pd.notna(row['Nombre']) else "Sin nombre"
         description.appendChild(doc.createTextNode(nombre_texto))
         placemark.appendChild(description)
+
         style_url = doc.createElement("styleUrl")
         style_url.appendChild(doc.createTextNode(f"#{estilo}"))
         placemark.appendChild(style_url)
+
         point = doc.createElement("Point")
         coordinates = doc.createElement("coordinates")
         coordinates.appendChild(doc.createTextNode(f"{row['Longitud']},{row['Latitud']},0"))
         point.appendChild(coordinates)
         placemark.appendChild(point)
+
         document.appendChild(placemark)
 
     with open("doc.kml", "w", encoding="utf-8") as f:
         f.write(doc.toprettyxml(indent="  "))
+
     with zipfile.ZipFile(nombre_archivo, "w", zipfile.ZIP_DEFLATED) as kmz:
         kmz.write("doc.kml", arcname="doc.kml")
 
-# Streamlit UI
-st.title("Generador de KMZ para Servicios Municipales")
-archivo = st.file_uploader("Sube el archivo Excel (.xlsx)", type=["xlsx"])
-servicio = st.selectbox("Selecciona el servicio", ["Instalacion", "Hidrolavado", "Mantencion"])
-from datetime import datetime
+# ---- INTERFAZ STREAMLIT ----
 
-fecha_ini = st.date_input("Fecha inicio")
-fecha_fin = st.date_input("Fecha fin")
+st.title("🗺️ Generador de Archivos KMZ - Municipalidad de Santiago")
 
-# Convertir las fechas a datetime para evitar errores de comparación
+archivo = st.file_uploader("📄 Sube el archivo Excel (.xlsx)", type=["xlsx"])
+servicio = st.selectbox("🔧 Selecciona el tipo de servicio", ["Instalacion", "Hidrolavado", "Mantencion"])
+fecha_ini = st.date_input("📅 Fecha de inicio")
+fecha_fin = st.date_input("📅 Fecha de término")
+
+# Convertimos las fechas a datetime
 fecha_ini = datetime.combine(fecha_ini, datetime.min.time())
 fecha_fin = datetime.combine(fecha_fin, datetime.max.time())
-
 
 if archivo and fecha_ini and fecha_fin:
     try:
@@ -120,10 +127,16 @@ if archivo and fecha_ini and fecha_fin:
             df['Nombre'] = df['Fecha y hora'].dt.strftime('%Y-%m-%d') + ' ' + df['Capacidad del contenedor'].astype(str)
             nombre_archivo = "Mantencion.kmz"
 
-        df[['Latitud', 'Longitud']] = df['Ubicacion'].apply(lambda x: pd.Series(extraer_lat_lon(str(x))))
+        # Extraer coordenadas
+        lat_lon = df['Ubicacion'].apply(lambda x: extraer_lat_lon(str(x)))
+        df['Latitud'] = lat_lon.apply(lambda x: x[0])
+        df['Longitud'] = lat_lon.apply(lambda x: x[1])
+
         generar_kmz(df, servicio, nombre_archivo)
 
         with open(nombre_archivo, "rb") as f:
+            st.success("✅ Archivo KMZ generado exitosamente.")
             st.download_button("📥 Descargar KMZ", f, file_name=nombre_archivo)
+
     except Exception as e:
-        st.error(f"Ocurrió un error: {e}")
+        st.error(f"❌ Error: {e}")
