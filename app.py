@@ -88,8 +88,15 @@ def generar_kmz(df, servicio, nombre_archivo):
 st.title("Generador de KMZ para Servicios Municipales")
 archivo = st.file_uploader("Sube el archivo Excel (.xlsx)", type=["xlsx"])
 servicio = st.selectbox("Selecciona el servicio", ["Instalacion", "Hidrolavado", "Mantencion"])
+from datetime import datetime
+
 fecha_ini = st.date_input("Fecha inicio")
 fecha_fin = st.date_input("Fecha fin")
+
+# Convertir las fechas a datetime para evitar errores de comparación
+fecha_ini = datetime.combine(fecha_ini, datetime.min.time())
+fecha_fin = datetime.combine(fecha_fin, datetime.max.time())
+
 
 if archivo and fecha_ini and fecha_fin:
     try:
